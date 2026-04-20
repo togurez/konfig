@@ -1,0 +1,130 @@
+### Health check
+GET {{host}}/health
+Accept: application/json
+
+### Create a feature flag setting
+POST {{host}}/settings
+Content-Type: application/json
+
+{
+  "key": "feature.dark_mode",
+  "setting_type": "feature_flag",
+  "value": { "enabled": true, "rollout_percentage": 50 },
+  "description": "Enable dark mode UI for users",
+  "is_active": true
+}
+
+### Create a limit setting
+POST {{host}}/settings
+Content-Type: application/json
+
+{
+  "key": "api.rate_limit",
+  "setting_type": "limit",
+  "value": { "requests_per_minute": 100 },
+  "description": "API rate limit per user",
+  "is_active": true
+}
+
+### Create an appearance setting
+POST {{host}}/settings
+Content-Type: application/json
+
+{
+  "key": "ui.theme",
+  "setting_type": "appearance",
+  "value": "dark",
+  "description": "Default UI theme",
+  "is_active": true
+}
+
+### Create an integration setting
+POST {{host}}/settings
+Content-Type: application/json
+
+{
+  "key": "integration.stripe",
+  "setting_type": "integration",
+  "value": { "enabled": true, "webhook_url": "https://example.com/webhook" },
+  "description": "Stripe payment integration config"
+}
+
+### List all settings
+GET {{host}}/settings
+Accept: application/json
+
+### List only active settings
+GET {{host}}/settings?active=true
+Accept: application/json
+
+### List settings by type
+GET {{host}}/settings?type=feature_flag
+Accept: application/json
+
+### List with pagination
+GET {{host}}/settings?page=1&per_page=5
+Accept: application/json
+
+### List with type + active filter
+GET {{host}}/settings?type=feature_flag&active=true
+Accept: application/json
+
+### Fetch a setting by key
+GET {{host}}/settings/feature.dark_mode
+Accept: application/json
+
+### Fetch a non-existent key (expect 404)
+GET {{host}}/settings/no.such.key
+Accept: application/json
+
+### Update a setting (partial)
+PATCH {{host}}/settings/feature.dark_mode
+Content-Type: application/json
+
+{
+  "value": { "enabled": false, "rollout_percentage": 0 },
+  "is_active": false
+}
+
+### Update only description
+PATCH {{host}}/settings/api.rate_limit
+Content-Type: application/json
+
+{
+  "description": "Stricter API rate limit"
+}
+
+### Update setting type and value
+PATCH {{host}}/settings/ui.theme
+Content-Type: application/json
+
+{
+  "setting_type": "appearance",
+  "value": "light"
+}
+
+### Delete a setting
+DELETE {{host}}/settings/integration.stripe
+
+### Delete a non-existent key (expect 404)
+DELETE {{host}}/settings/does.not.exist
+
+### Create duplicate key (expect 409)
+POST {{host}}/settings
+Content-Type: application/json
+
+{
+  "key": "feature.dark_mode",
+  "setting_type": "feature_flag",
+  "value": { "enabled": true }
+}
+
+### Create with invalid payload (expect 422)
+POST {{host}}/settings
+Content-Type: application/json
+
+{
+  "key": "",
+  "setting_type": "feature_flag",
+  "value": {}
+}
