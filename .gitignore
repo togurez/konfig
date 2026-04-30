@@ -3,3 +3,4 @@
 .env
 .claude
 /http-requests/http-client.private.env.json
+docs/

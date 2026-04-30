@@ -6,6 +6,8 @@ pub struct Config {
     pub app_env: String,
     pub database_url: String,
     pub database_max_connections: u32,
+    pub auth0_domain: String,
+    pub auth0_audience: String,
 }
 
 impl Config {

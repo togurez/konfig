@@ -5,6 +5,7 @@ Accept: application/json
 ### Create a feature flag setting
 POST {{host}}/settings
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "key": "feature.dark_mode",
@@ -17,6 +18,7 @@ Content-Type: application/json
 ### Create a limit setting
 POST {{host}}/settings
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "key": "api.rate_limit",
@@ -29,6 +31,7 @@ Content-Type: application/json
 ### Create an appearance setting
 POST {{host}}/settings
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "key": "ui.theme",
@@ -41,6 +44,7 @@ Content-Type: application/json
 ### Create an integration setting
 POST {{host}}/settings
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "key": "integration.stripe",
@@ -52,34 +56,42 @@ Content-Type: application/json
 ### List all settings
 GET {{host}}/settings
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ### List only active settings
 GET {{host}}/settings?active=true
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ### List settings by type
 GET {{host}}/settings?type=feature_flag
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ### List with pagination
 GET {{host}}/settings?page=1&per_page=5
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ### List with type + active filter
 GET {{host}}/settings?type=feature_flag&active=true
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ### Fetch a setting by key
 GET {{host}}/settings/feature.dark_mode
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ### Fetch a non-existent key (expect 404)
 GET {{host}}/settings/no.such.key
 Accept: application/json
+Authorization: Bearer {{token}}
 
 ### Update a setting (partial)
 PATCH {{host}}/settings/feature.dark_mode
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "value": { "enabled": false, "rollout_percentage": 0 },
@@ -89,6 +101,7 @@ Content-Type: application/json
 ### Update only description
 PATCH {{host}}/settings/api.rate_limit
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "description": "Stricter API rate limit"
@@ -97,6 +110,7 @@ Content-Type: application/json
 ### Update setting type and value
 PATCH {{host}}/settings/ui.theme
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "setting_type": "appearance",
@@ -105,13 +119,16 @@ Content-Type: application/json
 
 ### Delete a setting
 DELETE {{host}}/settings/integration.stripe
+Authorization: Bearer {{token}}
 
 ### Delete a non-existent key (expect 404)
 DELETE {{host}}/settings/does.not.exist
+Authorization: Bearer {{token}}
 
 ### Create duplicate key (expect 409)
 POST {{host}}/settings
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "key": "feature.dark_mode",
@@ -122,6 +139,7 @@ Content-Type: application/json
 ### Create with invalid payload (expect 422)
 POST {{host}}/settings
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
   "key": "",

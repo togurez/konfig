@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use konfig::{config::Config, routes::create_router, state::AppState};
+use konfig::{auth::JwksCache, config::Config, routes::create_router, state::AppState};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -24,7 +24,10 @@ async fn main() -> anyhow::Result<()> {
 
     sqlx::migrate!("./migrations").run(&pool).await?;
 
-    let app = create_router(AppState { db: pool });
+    let app = create_router(AppState {
+        db: pool,
+        jwks: JwksCache::new(config.auth0_domain.clone(), config.auth0_audience.clone()),
+    });
 
     let addr = SocketAddr::from(([0, 0, 0, 0], config.app_port));
     tracing::info!(%addr, "Listening");
