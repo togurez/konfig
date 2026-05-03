@@ -27,12 +27,11 @@ pub async fn create_setting(
 
 pub async fn list_settings(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
     Query(query): Query<ListSettingsQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     let (settings, total) = tokio::try_join!(
-        db::settings::list_settings(&state.db, &query, &claims.sub),
-        db::settings::count_settings(&state.db, &query, &claims.sub),
+        db::settings::list_settings(&state.db, &query),
+        db::settings::count_settings(&state.db, &query),
     )?;
 
     let mut headers = axum::http::HeaderMap::new();
@@ -47,10 +46,9 @@ pub async fn list_settings(
 
 pub async fn get_setting(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
     Path(key): Path<String>,
 ) -> Result<Json<Setting>, AppError> {
-    let setting = db::settings::get_setting_by_key(&state.db, &key, &claims.sub)
+    let setting = db::settings::get_setting_by_key(&state.db, &key)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Setting '{key}' does not exist")))?;
     Ok(Json(setting))

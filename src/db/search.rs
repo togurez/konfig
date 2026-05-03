@@ -12,25 +12,18 @@ use crate::{
 
 use super::{revisions, settings::SETTING_COLUMNS};
 
-pub async fn search_settings(
-    pool: &PgPool,
-    query: &SearchQuery,
-    user_id: &str,
-) -> Result<SearchPage, AppError> {
+pub async fn search_settings(pool: &PgPool, query: &SearchQuery) -> Result<SearchPage, AppError> {
     let page = query.page.unwrap_or(1).max(1);
     let per_page = query.per_page.unwrap_or(20).min(100);
     let offset = ((page - 1) * per_page) as i64;
 
-    let workspace_total: i64 =
-        sqlx::query_scalar("SELECT COUNT(*) FROM settings WHERE created_by = $1")
-            .bind(user_id)
-            .fetch_one(pool)
-            .await
-            .map_err(AppError::DatabaseError)?;
+    let workspace_total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM settings")
+        .fetch_one(pool)
+        .await
+        .map_err(AppError::DatabaseError)?;
 
     let mut count_qb: sqlx::QueryBuilder<sqlx::Postgres> =
-        sqlx::QueryBuilder::new("SELECT COUNT(*) FROM settings WHERE created_by = ");
-    count_qb.push_bind(user_id);
+        sqlx::QueryBuilder::new("SELECT COUNT(*) FROM settings WHERE 1=1");
     push_search_filters(&mut count_qb, query);
 
     let total = count_qb
@@ -40,8 +33,7 @@ pub async fn search_settings(
         .map_err(AppError::DatabaseError)?;
 
     let mut data_qb: sqlx::QueryBuilder<sqlx::Postgres> =
-        sqlx::QueryBuilder::new(format!("SELECT {SETTING_COLUMNS} FROM settings WHERE created_by = "));
-    data_qb.push_bind(user_id);
+        sqlx::QueryBuilder::new(format!("SELECT {SETTING_COLUMNS} FROM settings WHERE 1=1"));
     push_search_filters(&mut data_qb, query);
     push_search_order(&mut data_qb, query);
     data_qb
@@ -71,8 +63,7 @@ pub async fn bulk_action(
     user_id: &str,
 ) -> Result<BulkResponse, AppError> {
     let mut count_qb: sqlx::QueryBuilder<sqlx::Postgres> =
-        sqlx::QueryBuilder::new("SELECT COUNT(*) FROM settings WHERE created_by = ");
-    count_qb.push_bind(user_id);
+        sqlx::QueryBuilder::new("SELECT COUNT(*) FROM settings WHERE 1=1");
     push_bulk_filters(&mut count_qb, &req.filter);
 
     let matched: i64 = count_qb
@@ -88,9 +79,7 @@ pub async fn bulk_action(
             let mut qb: sqlx::QueryBuilder<sqlx::Postgres> = sqlx::QueryBuilder::new(
                 "UPDATE settings SET is_active = true, updated_at = NOW(), updated_by = ",
             );
-            qb.push_bind(user_id)
-                .push(" WHERE is_active = false AND created_by = ")
-                .push_bind(user_id);
+            qb.push_bind(user_id).push(" WHERE is_active = false");
             push_bulk_filters(&mut qb, &req.filter);
             let r = qb
                 .build()
@@ -103,9 +92,7 @@ pub async fn bulk_action(
             let mut qb: sqlx::QueryBuilder<sqlx::Postgres> = sqlx::QueryBuilder::new(
                 "UPDATE settings SET is_active = false, updated_at = NOW(), updated_by = ",
             );
-            qb.push_bind(user_id)
-                .push(" WHERE is_active = true AND created_by = ")
-                .push_bind(user_id);
+            qb.push_bind(user_id).push(" WHERE is_active = true");
             push_bulk_filters(&mut qb, &req.filter);
             let r = qb
                 .build()
@@ -116,8 +103,7 @@ pub async fn bulk_action(
         }
         BulkAction::Delete => {
             let mut qb: sqlx::QueryBuilder<sqlx::Postgres> =
-                sqlx::QueryBuilder::new("DELETE FROM settings WHERE created_by = ");
-            qb.push_bind(user_id);
+                sqlx::QueryBuilder::new("DELETE FROM settings WHERE 1=1");
             push_bulk_filters(&mut qb, &req.filter);
             let r = qb
                 .build()

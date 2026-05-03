@@ -56,16 +56,11 @@ pub async fn insert_setting(
     Ok(setting)
 }
 
-pub async fn get_setting_by_key(
-    pool: &PgPool,
-    key: &str,
-    user_id: &str,
-) -> Result<Option<Setting>, AppError> {
+pub async fn get_setting_by_key(pool: &PgPool, key: &str) -> Result<Option<Setting>, AppError> {
     sqlx::query_as::<_, Setting>(&format!(
-        "SELECT {SETTING_COLUMNS} FROM settings WHERE key = $1 AND created_by = $2"
+        "SELECT {SETTING_COLUMNS} FROM settings WHERE key = $1"
     ))
     .bind(key)
-    .bind(user_id)
     .fetch_optional(pool)
     .await
     .map_err(AppError::DatabaseError)
@@ -74,16 +69,14 @@ pub async fn get_setting_by_key(
 pub async fn list_settings(
     pool: &PgPool,
     filters: &ListSettingsQuery,
-    user_id: &str,
 ) -> Result<Vec<Setting>, AppError> {
     let page = filters.page.unwrap_or(1).max(1);
     let per_page = filters.per_page.unwrap_or(20).min(100);
     let offset = ((page - 1) * per_page) as i64;
 
     let mut qb: sqlx::QueryBuilder<sqlx::Postgres> = sqlx::QueryBuilder::new(format!(
-        "SELECT {SETTING_COLUMNS} FROM settings WHERE created_by = "
+        "SELECT {SETTING_COLUMNS} FROM settings WHERE 1=1"
     ));
-    qb.push_bind(user_id);
 
     if let Some(setting_type) = &filters.setting_type {
         qb.push(" AND setting_type = ").push_bind(setting_type);
@@ -103,14 +96,9 @@ pub async fn list_settings(
         .map_err(AppError::DatabaseError)
 }
 
-pub async fn count_settings(
-    pool: &PgPool,
-    filters: &ListSettingsQuery,
-    user_id: &str,
-) -> Result<i64, AppError> {
+pub async fn count_settings(pool: &PgPool, filters: &ListSettingsQuery) -> Result<i64, AppError> {
     let mut qb: sqlx::QueryBuilder<sqlx::Postgres> =
-        sqlx::QueryBuilder::new("SELECT COUNT(*) FROM settings WHERE created_by = ");
-    qb.push_bind(user_id);
+        sqlx::QueryBuilder::new("SELECT COUNT(*) FROM settings WHERE 1=1");
 
     if let Some(setting_type) = &filters.setting_type {
         qb.push(" AND setting_type = ").push_bind(setting_type);
@@ -134,10 +122,9 @@ pub async fn update_setting(
     let mut tx = pool.begin().await.map_err(AppError::DatabaseError)?;
 
     let current = sqlx::query_as::<_, Setting>(&format!(
-        "SELECT {SETTING_COLUMNS} FROM settings WHERE key = $1 AND created_by = $2 FOR UPDATE"
+        "SELECT {SETTING_COLUMNS} FROM settings WHERE key = $1 FOR UPDATE"
     ))
     .bind(key)
-    .bind(user_id)
     .fetch_optional(&mut *tx)
     .await
     .map_err(AppError::DatabaseError)?;
@@ -201,17 +188,15 @@ pub async fn delete_setting(pool: &PgPool, key: &str, user_id: &str) -> Result<b
     let mut tx = pool.begin().await.map_err(AppError::DatabaseError)?;
 
     let current = sqlx::query_as::<_, Setting>(&format!(
-        "SELECT {SETTING_COLUMNS} FROM settings WHERE key = $1 AND created_by = $2"
+        "SELECT {SETTING_COLUMNS} FROM settings WHERE key = $1"
     ))
     .bind(key)
-    .bind(user_id)
     .fetch_optional(&mut *tx)
     .await
     .map_err(AppError::DatabaseError)?;
 
-    let result = sqlx::query("DELETE FROM settings WHERE key = $1 AND created_by = $2")
+    let result = sqlx::query("DELETE FROM settings WHERE key = $1")
         .bind(key)
-        .bind(user_id)
         .execute(&mut *tx)
         .await
         .map_err(AppError::DatabaseError)?;
@@ -259,28 +244,11 @@ mod tests {
         assert_eq!(setting.created_by.as_deref(), Some(TEST_USER));
         assert_eq!(setting.updated_by.as_deref(), Some(TEST_USER));
 
-        let fetched = get_setting_by_key(&pool, "feature.dark_mode", TEST_USER)
+        let fetched = get_setting_by_key(&pool, "feature.dark_mode")
             .await
             .unwrap()
             .expect("setting should exist");
         assert_eq!(fetched.id, setting.id);
-    }
-
-    #[sqlx::test(migrations = "./migrations")]
-    async fn test_other_user_cannot_read(pool: PgPool) {
-        let req = CreateSettingRequest {
-            key: "feature.dark_mode".to_string(),
-            setting_type: SettingType::FeatureFlag,
-            value: json!(true),
-            description: None,
-            is_active: Some(true),
-        };
-        insert_setting(&pool, &req, TEST_USER).await.unwrap();
-
-        let result = get_setting_by_key(&pool, "feature.dark_mode", "auth0|other-user")
-            .await
-            .unwrap();
-        assert!(result.is_none());
     }
 
     #[sqlx::test(migrations = "./migrations")]
@@ -300,9 +268,7 @@ mod tests {
 
     #[sqlx::test(migrations = "./migrations")]
     async fn test_missing_key_returns_none(pool: PgPool) {
-        let result = get_setting_by_key(&pool, "nonexistent.key", TEST_USER)
-            .await
-            .unwrap();
+        let result = get_setting_by_key(&pool, "nonexistent.key").await.unwrap();
         assert!(result.is_none());
     }
 
@@ -324,29 +290,20 @@ mod tests {
             description: Some("Theme setting".to_string()),
             is_active: Some(false),
         };
-        // updater does not own this setting — should get None
-        let not_found = update_setting(&pool, "ui.theme", &update, updater)
-            .await
-            .unwrap();
-        assert!(not_found.is_none());
-
-        let updated = update_setting(&pool, "ui.theme", &update, TEST_USER)
+        let updated = update_setting(&pool, "ui.theme", &update, updater)
             .await
             .unwrap()
             .expect("setting should exist");
         assert_eq!(updated.value, json!("light"));
         assert!(!updated.is_active);
         assert_eq!(updated.created_by.as_deref(), Some(TEST_USER));
+        assert_eq!(updated.updated_by.as_deref(), Some(updater));
         assert!(updated.updated_at >= created.updated_at);
-
-        // another user cannot delete
-        let not_deleted = delete_setting(&pool, "ui.theme", updater).await.unwrap();
-        assert!(!not_deleted);
 
         let deleted = delete_setting(&pool, "ui.theme", TEST_USER).await.unwrap();
         assert!(deleted);
 
-        let gone = get_setting_by_key(&pool, "ui.theme", TEST_USER).await.unwrap();
+        let gone = get_setting_by_key(&pool, "ui.theme").await.unwrap();
         assert!(gone.is_none());
     }
 
@@ -375,26 +332,14 @@ mod tests {
         let total = count_settings(
             &pool,
             &ListSettingsQuery { setting_type: None, active: None, page: None, per_page: None },
-            TEST_USER,
         )
         .await
         .unwrap();
         assert_eq!(total, 3);
 
-        // another user sees nothing
-        let other_total = count_settings(
-            &pool,
-            &ListSettingsQuery { setting_type: None, active: None, page: None, per_page: None },
-            "auth0|other-user",
-        )
-        .await
-        .unwrap();
-        assert_eq!(other_total, 0);
-
         let active_total = count_settings(
             &pool,
             &ListSettingsQuery { setting_type: None, active: Some(true), page: None, per_page: None },
-            TEST_USER,
         )
         .await
         .unwrap();
@@ -408,7 +353,6 @@ mod tests {
                 page: None,
                 per_page: None,
             },
-            TEST_USER,
         )
         .await
         .unwrap();
@@ -440,7 +384,6 @@ mod tests {
         let all = list_settings(
             &pool,
             &ListSettingsQuery { setting_type: None, active: None, page: None, per_page: None },
-            TEST_USER,
         )
         .await
         .unwrap();
@@ -449,7 +392,6 @@ mod tests {
         let active_only = list_settings(
             &pool,
             &ListSettingsQuery { setting_type: None, active: Some(true), page: None, per_page: None },
-            TEST_USER,
         )
         .await
         .unwrap();
@@ -463,7 +405,6 @@ mod tests {
                 page: None,
                 per_page: None,
             },
-            TEST_USER,
         )
         .await
         .unwrap();

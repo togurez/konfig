@@ -15,10 +15,9 @@ use crate::{
 
 pub async fn search_settings(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
     Query(query): Query<SearchQuery>,
 ) -> Result<impl IntoResponse, AppError> {
-    let page = db::search::search_settings(&state.db, &query, &claims.sub).await?;
+    let page = db::search::search_settings(&state.db, &query).await?;
     Ok(Json(page))
 }
 
