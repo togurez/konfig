@@ -6,8 +6,8 @@ pub struct Config {
     pub app_env: String,
     pub database_url: String,
     pub database_max_connections: u32,
-    pub auth0_domain: String,
-    pub auth0_audience: String,
+    /// Shared secret validated on every inbound request via X-Internal-Token.
+    pub internal_api_secret: String,
 }
 
 impl Config {

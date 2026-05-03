@@ -1,9 +1,9 @@
 use sqlx::PgPool;
 
-use crate::auth::JwksCache;
+use crate::config::Config;
 
 #[derive(Clone)]
 pub struct AppState {
     pub db: PgPool,
-    pub jwks: JwksCache,
+    pub config: Config,
 }

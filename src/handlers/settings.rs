@@ -7,7 +7,7 @@ use axum::{
 use validator::Validate;
 
 use crate::{
-    auth::Claims,
+    auth::CallerSub,
     db,
     error::AppError,
     models::setting::{CreateSettingRequest, ListSettingsQuery, Setting, UpdateSettingRequest},
@@ -16,12 +16,12 @@ use crate::{
 
 pub async fn create_setting(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
+    Extension(caller): Extension<CallerSub>,
     Json(req): Json<CreateSettingRequest>,
 ) -> Result<(StatusCode, Json<Setting>), AppError> {
     req.validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-    let setting = db::settings::insert_setting(&state.db, &req, &claims.sub).await?;
+    let setting = db::settings::insert_setting(&state.db, &req, &caller.0).await?;
     Ok((StatusCode::CREATED, Json(setting)))
 }
 
@@ -56,13 +56,13 @@ pub async fn get_setting(
 
 pub async fn update_setting(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
+    Extension(caller): Extension<CallerSub>,
     Path(key): Path<String>,
     Json(req): Json<UpdateSettingRequest>,
 ) -> Result<Json<Setting>, AppError> {
     req.validate()
         .map_err(|e| AppError::ValidationError(e.to_string()))?;
-    let setting = db::settings::update_setting(&state.db, &key, &req, &claims.sub)
+    let setting = db::settings::update_setting(&state.db, &key, &req, &caller.0)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Setting '{key}' does not exist")))?;
     Ok(Json(setting))
@@ -70,10 +70,10 @@ pub async fn update_setting(
 
 pub async fn delete_setting(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
+    Extension(caller): Extension<CallerSub>,
     Path(key): Path<String>,
 ) -> Result<StatusCode, AppError> {
-    let deleted = db::settings::delete_setting(&state.db, &key, &claims.sub).await?;
+    let deleted = db::settings::delete_setting(&state.db, &key, &caller.0).await?;
     if deleted {
         Ok(StatusCode::NO_CONTENT)
     } else {

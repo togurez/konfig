@@ -34,7 +34,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/audit", get(handlers::revisions::list_audit))
         .route_layer(middleware::from_fn_with_state(
             state.clone(),
-            auth::require_auth,
+            auth::require_internal_auth,
         ));
 
     Router::new()

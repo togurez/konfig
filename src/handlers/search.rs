@@ -6,7 +6,7 @@ use axum::{
 };
 
 use crate::{
-    auth::Claims,
+    auth::CallerSub,
     db,
     error::AppError,
     models::search::{BulkAction, BulkRequest, SearchQuery},
@@ -23,7 +23,7 @@ pub async fn search_settings(
 
 pub async fn bulk_action(
     State(state): State<AppState>,
-    Extension(claims): Extension<Claims>,
+    Extension(caller): Extension<CallerSub>,
     headers: HeaderMap,
     Json(req): Json<BulkRequest>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -39,6 +39,6 @@ pub async fn bulk_action(
         }
     }
 
-    let result = db::search::bulk_action(&state.db, &req, &claims.sub).await?;
+    let result = db::search::bulk_action(&state.db, &req, &caller.0).await?;
     Ok(Json(result))
 }
